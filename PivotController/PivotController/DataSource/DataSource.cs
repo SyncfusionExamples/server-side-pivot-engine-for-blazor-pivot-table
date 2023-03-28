@@ -93,44 +93,44 @@ namespace PivotController.Controllers
         }
 
         public class PivotDynamicData
-{
-    public List<DynamicDictionary> Orders = new List<DynamicDictionary>() { };
-    public List<DynamicDictionary> GetDynamicData()
-    {
-        Orders = Enumerable.Range(1, 100).Select((x) =>
         {
-            dynamic d = new DynamicDictionary();
-            d.OrderID = 100 + x;
-            d.CustomerID = (new string[] { "ALFKI", "ANANTR", "ANTON", "BLONP", "BOLID" })[new Random().Next(5)];
-            d.Freight = (new double[] { 2, 1, 4, 5, 3 })[new Random().Next(5)] * x;
-            d.OrderDate = (new DateTime[] { new DateTime(2010, 11, 5), new DateTime(2018, 10, 3), new DateTime(1995, 9, 9), new DateTime(2012, 8, 2), new DateTime(2015, 4, 11) })[new Random().Next(5)];
-            d.ShipCountry = (new string[] { "USA", "UK" })[new Random().Next(2)];
-            d.Verified = (new bool[] { true, false })[new Random().Next(2)];
-            return d;
-        }).Cast<DynamicDictionary>().ToList<DynamicDictionary>();
-        return Orders;
-    }
+            public List<DynamicDictionary> Orders = new List<DynamicDictionary>() { };
+            public List<DynamicDictionary> GetDynamicData()
+            {
+                Orders = Enumerable.Range(1, 100).Select((x) =>
+                {
+                    dynamic d = new DynamicDictionary();
+                    d.OrderID = 100 + x;
+                    d.CustomerID = (new string[] { "ALFKI", "ANANTR", "ANTON", "BLONP", "BOLID" })[new Random().Next(5)];
+                    d.Freight = (new double[] { 2, 1, 4, 5, 3 })[new Random().Next(5)] * x;
+                    d.OrderDate = (new DateTime[] { new DateTime(2010, 11, 5), new DateTime(2018, 10, 3), new DateTime(1995, 9, 9), new DateTime(2012, 8, 2), new DateTime(2015, 4, 11) })[new Random().Next(5)];
+                    d.ShipCountry = (new string[] { "USA", "UK" })[new Random().Next(2)];
+                    d.Verified = (new bool[] { true, false })[new Random().Next(2)];
+                    return d;
+                }).Cast<DynamicDictionary>().ToList<DynamicDictionary>();
+                return Orders;
+            }
 
-    public class DynamicDictionary : System.Dynamic.DynamicObject
-    {
-        Dictionary<string, object> dictionary = new Dictionary<string, object>();
-        public override bool TryGetMember(GetMemberBinder binder, out object result)
-        {
-            string name = binder.Name;
-            return dictionary.TryGetValue(name, out result);
+            public class DynamicDictionary : System.Dynamic.DynamicObject
+            {
+                Dictionary<string, object> dictionary = new Dictionary<string, object>();
+                public override bool TryGetMember(GetMemberBinder binder, out object result)
+                {
+                    string name = binder.Name;
+                    return dictionary.TryGetValue(name, out result);
+                }
+                public override bool TrySetMember(SetMemberBinder binder, object value)
+                {
+                    dictionary[binder.Name] = value;
+                    return true;
+                }
+                //The "GetDynamicMemberNames" method of the "DynamicDictionary" class must be overridden and return the property names to perform data operation and editing while using dynamic objects.
+                public override System.Collections.Generic.IEnumerable<string> GetDynamicMemberNames()
+                {
+                    return this.dictionary?.Keys;
+                }
+            }
         }
-        public override bool TrySetMember(SetMemberBinder binder, object value)
-        {
-            dictionary[binder.Name] = value;
-            return true;
-        }
-        //The "GetDynamicMemberNames" method of the "DynamicDictionary" class must be overridden and return the property names to perform data operation and editing while using dynamic objects.
-        public override System.Collections.Generic.IEnumerable<string> GetDynamicMemberNames()
-        {
-            return this.dictionary?.Keys;
-        }
-    }
-}
 
         public class UniversityData
         {
