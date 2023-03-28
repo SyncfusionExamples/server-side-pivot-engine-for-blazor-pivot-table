@@ -1,0 +1,32 @@
+﻿@page "/"
+@using Syncfusion.Blazor.PivotView
+
+<SfPivotView TValue="PivotViewData" Height="300" Width="1200">
+    <PivotViewDataSourceSettings TValue="PivotViewData" Url="http://localhost:61379/api/pivot/post" EnableServerSideAggregation="true">
+        <PivotViewRows>
+            <PivotViewRow Name="ProductID"></PivotViewRow>
+        </PivotViewRows>
+        <PivotViewColumns>
+            <PivotViewColumn Name="Year" Caption="Production Year"></PivotViewColumn>
+        </PivotViewColumns>
+        <PivotViewValues>
+            <PivotViewValue Name="Price" Caption="Sold Amount"></PivotViewValue>
+            <PivotViewValue Name="Sold" Caption="Units Sold"></PivotViewValue>
+        </PivotViewValues>
+        <PivotViewFormatSettings>
+            <PivotViewFormatSetting Name="Price" Format="C0"></PivotViewFormatSetting>
+        </PivotViewFormatSettings>
+    </PivotViewDataSourceSettings>
+</SfPivotView>
+
+@code{
+    public class PivotViewData
+    {
+        public string ProductID { get; set; }
+        public string Country { get; set; }
+        public string Product { get; set; }
+        public double Sold { get; set; }
+        public double Price { get; set; }
+        public string Year { get; set; }
+    }
+}
