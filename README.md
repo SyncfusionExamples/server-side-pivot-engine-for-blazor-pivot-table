@@ -5,4 +5,4 @@ The following steps demonstrate how to run the application,
 * Open the **PivotController** project in Visual Studio 2022.
 * Dependent packages will be downloaded automatically from the nuget.org site.
 * After downloading the packages, run the project, it will be hosted in the localhost.
-* Now, open the **MyBlazorApp** project in Visual Studio 2022, map the hosted URL in the **index.razor** file, and run the project. The pivot table will be populated in the browser.
+* Now, open the **PivotTable** project in Visual Studio 2022, map the hosted URL in the **index.razor** file, and run the project. The pivot table will be populated in the browser.
