@@ -6,7 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="Syncfusion.Pivot.Engine" Version="27.2.5" />
+    <PackageReference Include="Syncfusion.Pivot.Engine" Version="*" />
     <PackageReference Include="System.Text.Json" Version="9.0.0" />
   </ItemGroup>
 
