@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Dynamic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -9,7 +8,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Newtonsoft.Json;
-using Syncfusion.EJ2.Pivot;
+using Syncfusion.Pivot.Engine;
 
 namespace PivotController.Controllers
 {
@@ -99,7 +98,15 @@ namespace PivotController.Controllers
             EngineProperties engine = await GetEngine(param);
             Dictionary<string, object> returnValue = new Dictionary<string, object>();
             returnValue["memberName"] = param.MemberName;
-            returnValue["members"] = Serialize(engine.FieldList[param.MemberName].DateMember, customSerializeOptions);
+            if (engine.FieldList[param.MemberName].IsMembersFilled)
+            {
+                returnValue["members"] = Serialize(engine.FieldList[param.MemberName].Members, customSerializeOptions);
+            }
+            else
+            {
+                await PivotEngine.PerformAction(engine, param);
+                returnValue["members"] = Serialize(engine.FieldList[param.MemberName].Members, customSerializeOptions);
+            }
             return returnValue;
         }
 
