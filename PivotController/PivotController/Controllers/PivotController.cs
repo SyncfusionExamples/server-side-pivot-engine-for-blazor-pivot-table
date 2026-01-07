@@ -8,17 +8,20 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Newtonsoft.Json;
+using System.Diagnostics.CodeAnalysis;
 using Syncfusion.Pivot.Engine;
 
 namespace PivotController.Controllers
 {
     [Route("api/[controller]")]
+    [SuppressMessage("Design", "CA1515:Consider making types internal")]
     public class PivotController : Controller
     {
         private readonly IMemoryCache _cache;
-        private IWebHostEnvironment _hostingEnvironment;
         private bool isRendered;
         private PivotEngine<DataSource.PivotViewData> PivotEngine = new PivotEngine<DataSource.PivotViewData>();
+        private ExcelExport excelExport = new ExcelExport();
+        private PivotExportEngine<DataSource.PivotViewData> pivotExport = new PivotExportEngine<DataSource.PivotViewData>();
         JsonSerializerOptions customSerializeOptions = new JsonSerializerOptions()
         {
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -29,49 +32,77 @@ namespace PivotController.Controllers
                     new ObjectToInferredTypesConverter()
                 }
         };
-
-        public PivotController(IMemoryCache cache, IWebHostEnvironment environment)
+        public PivotController(IMemoryCache cache)
         {
             _cache = cache;
-            _hostingEnvironment = environment;
         }
 
         [Route("/api/pivot/post")]
         [HttpPost]
+        [SuppressMessage("Security", "CA5391:Use ValidateAntiForgeryToken on methods which support GET, HEAD, PUT, DELETE, PATCH, or POST")]
         public async Task<object> Post([FromBody]object args)
         {
-            FetchData param = JsonConvert.DeserializeObject<FetchData>(args.ToString());
+            ArgumentNullException.ThrowIfNull(args);
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+            FetchData param = JsonConvert.DeserializeObject<FetchData>(args.ToString() ?? string.Empty);
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
+            ArgumentNullException.ThrowIfNull(param);
             if (param.Action == "fetchFieldMembers")
             {
-                return await GetMembers(param);
+                return await GetMembers(param).ConfigureAwait(false);
             }
             else if (param.Action == "fetchRawData")
             {
-                return await GetRawData(param);
+                return await GetRawData(param).ConfigureAwait(false);
+            }
+            else if (param.Action == "onExcelExport" || param.Action == "onCsvExport" ||
+                     param.Action == "onPivotExcelExport" || param.Action == "onPivotCsvExport")
+            {
+                EngineProperties engine = await GetEngine(param).ConfigureAwait(false);
+                if (param.InternalProperties.EnableVirtualization && param.ExportAllPages)
+                {
+                    engine = await PivotEngine.PerformAction(engine, param).ConfigureAwait(false);
+                }
+                if (param.Action == "onExcelExport")
+                {
+                    return excelExport.ExportToExcel("Excel", engine, null, param.ExcelExportProperties);
+                }
+                else if (param.Action == "onPivotExcelExport" || param.Action == "onPivotCsvExport")
+                {
+                    return pivotExport.ExportAsPivot(param.Action == "onPivotExcelExport" ? ExportType.Excel : ExportType.CSV, engine, param);
+                }
+                else
+                {
+                    return excelExport.ExportToExcel("CSV", engine, null, param.ExcelExportProperties);
+                }
             }
             else
             {
-                return await GetPivotValues(param);
+                return await GetPivotValues(param).ConfigureAwait(false);
             }
         }
-        public async Task<EngineProperties> GetEngine(FetchData param)
+        private async Task<EngineProperties> GetEngine(FetchData param)
         {
             isRendered = false;
+#pragma warning disable CS8603 // Possible null reference return.
             return await _cache.GetOrCreateAsync("engine" + param.Hash,
                 async (cacheEntry) =>
                 {
                     isRendered = true;
                     cacheEntry.SetSize(1);
                     cacheEntry.AbsoluteExpiration = DateTimeOffset.UtcNow.AddMinutes(60);
-                    PivotEngine.Data = await GetData(param);
-                    return await PivotEngine.GetEngine(param);
-                });
+                    PivotEngine.Data = await GetData(param).ConfigureAwait(false);
+                    return await PivotEngine.GetEngine(param).ConfigureAwait(false);
+                }).ConfigureAwait(false);
+#pragma warning restore CS8603 // Possible null reference return.
         }
 
         public async Task<object> GetData(FetchData param)
         {
+#pragma warning disable CS8603 // Possible null reference return.
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
             return await _cache.GetOrCreateAsync("dataSource" + param.Hash,
-                async (cacheEntry) =>
+               async (cacheEntry) =>
                 {
                     cacheEntry.SetSize(1);
                     cacheEntry.AbsoluteExpiration = DateTimeOffset.UtcNow.AddMinutes(60);
@@ -90,12 +121,14 @@ namespace PivotController.Controllers
                     // return new DataSource.PivotCSVData().ReadCSVData("http://cdn.syncfusion.com/data/sales-analysis.csv");
                     // return new DataSource.PivotExpandoData().GetExpandoData();
                     // return new DataSource.PivotDynamicData().GetDynamicData();
-                });
+                }).ConfigureAwait(false);
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
+#pragma warning restore CS8603 // Possible null reference return.
         }
 
-        public async Task<object> GetMembers(FetchData param)
+        private async Task<object> GetMembers(FetchData param)
         {
-            EngineProperties engine = await GetEngine(param);
+            EngineProperties engine = await GetEngine(param).ConfigureAwait(false);
             Dictionary<string, object> returnValue = new Dictionary<string, object>();
             returnValue["memberName"] = param.MemberName;
             if (engine.FieldList[param.MemberName].IsMembersFilled)
@@ -104,33 +137,32 @@ namespace PivotController.Controllers
             }
             else
             {
-                await PivotEngine.PerformAction(engine, param);
+                await PivotEngine.PerformAction(engine, param).ConfigureAwait(false);
                 returnValue["members"] = Serialize(engine.FieldList[param.MemberName].Members, customSerializeOptions);
             }
             return returnValue;
         }
 
-        public async Task<object> GetRawData(FetchData param)
+        private async Task<object> GetRawData(FetchData param)
         {
-            EngineProperties engine = await GetEngine(param);
+            EngineProperties engine = await GetEngine(param).ConfigureAwait(false);
             return PivotEngine.GetRawData(param, engine);
         }
 
-        public async Task<object> GetPivotValues(FetchData param)
+        private async Task<object> GetPivotValues(FetchData param)
         {
-            Stopwatch ss = new Stopwatch();
-            ss.Start();
-            EngineProperties engine = await GetEngine(param);
+            EngineProperties engine = await GetEngine(param).ConfigureAwait(false);
+            if (param.IsGroupingUpdated)
+            {
+                engine.Data = await GetData(param).ConfigureAwait(false);
+            }
             if (!isRendered)
             {
-                engine = await PivotEngine.PerformAction(engine, param);
+                engine = await PivotEngine.PerformAction(engine, param).ConfigureAwait(false);
             }
             _cache.Remove("engine" + param.Hash);
             _cache.Set("engine" + param.Hash, engine, new MemoryCacheEntryOptions().SetSize(1).SetAbsoluteExpiration(DateTimeOffset.UtcNow.AddMinutes(60)));
-            var pivotValues = PivotEngine.GetPivotValues();
-            ss.Stop();
-            Console.WriteLine(ss.ElapsedMilliseconds);
-            return pivotValues;
+            return PivotEngine.GetPivotValues();
         }
 
         private string Serialize(dynamic fieldItem, JsonSerializerOptions jsonSerializerOptions = null)
@@ -139,6 +171,5 @@ namespace PivotController.Controllers
             serializedString = fieldItem != null ? System.Text.Json.JsonSerializer.Serialize(fieldItem, jsonSerializerOptions ?? new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull }) : null;
             return serializedString;
         }
-
     }
 }
